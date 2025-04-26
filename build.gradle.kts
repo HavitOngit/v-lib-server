@@ -20,6 +20,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.session:spring-session-core")
+    implementation("commons-io:commons-io:2.13.0")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("com.oracle.database.jdbc:ojdbc11")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
