@@ -85,6 +85,3 @@ public class Video implements Serializable {
                 '}';
     }
 }
-
-package com.vlibserver.vlibserver.model.Video;
-

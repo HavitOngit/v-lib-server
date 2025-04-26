@@ -1,17 +1,14 @@
 package com.vlibserver.vlibserver.controller;
 
+import com.vlibserver.vlibserver.model.Video;
 import com.vlibserver.vlibserver.service.VideoScanService;
-import com.example.videostreaming.service.VideoStreamService;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.server.reactive.ServerHttpResponse;
+import com.vlibserver.vlibserver.service.VideoStreamService;
+import org.springframework.core.io.support.ResourceRegion;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple2; // Added import
 
 @RestController
 @RequestMapping("/api/videos")
@@ -37,40 +34,41 @@ public class VideoController {
     }
 
     @GetMapping(value = "/{id}/stream")
-    public Mono<ResponseEntity<Flux<DataBuffer>>> streamVideo(
+    public Mono<ResponseEntity<ResourceRegion>> streamVideo(
             @PathVariable String id,
-            @RequestHeader HttpHeaders headers,
-            ServerHttpResponse response) {
+            @RequestHeader HttpHeaders headers) {
 
         return videoStreamService.getVideoDetails(id)
-                .map(tuple -> {
-                    Video video = tuple.getT1();
-                    MediaType mediaType = tuple.getT2();
+                .flatMap(videoDetails -> {
+                    // Video video = videoDetails.getT1(); // Video object might be needed later,
+                    // keep commented if unused
+                    MediaType mediaType = videoDetails.getT2();
 
-                    Tuple2<Long, Long> rangeValues = videoStreamService.calculateRangeValues(id, headers);
-                    long rangeStart = rangeValues.getT1();
-                    long rangeEnd = rangeValues.getT2();
-                    long contentLength = rangeEnd - rangeStart + 1;
-                    long fullContentLength = videoStreamService.getContentLength(id);
+                    return videoStreamService.getResourceRegion(id, headers)
+                            .map(resourceRegion -> {
+                                long contentLength = videoStreamService.getContentLength(id);
+                                Tuple2<Long, Long> range = videoStreamService.calculateRangeValues(id, headers);
+                                long start = range.getT1();
+                                long end = range.getT2();
+                                long resourceLength = resourceRegion.getCount();
 
-                    // Set up headers for streaming
-                    HttpHeaders responseHeaders = response.getHeaders();
-                    responseHeaders.setContentType(mediaType);
-                    responseHeaders.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + video.getTitle() + "\"");
-                    responseHeaders.add(HttpHeaders.ACCEPT_RANGES, "bytes");
-                    responseHeaders.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(contentLength));
+                                HttpStatus status = headers.getRange().isEmpty() ? HttpStatus.OK
+                                        : HttpStatus.PARTIAL_CONTENT;
 
-                    HttpStatus status;
-                    if (!headers.getRange().isEmpty()) {
-                        status = HttpStatus.PARTIAL_CONTENT;
-                        String contentRange = "bytes " + rangeStart + "-" + rangeEnd + "/" + fullContentLength;
-                        responseHeaders.add(HttpHeaders.CONTENT_RANGE, contentRange);
-                    } else {
-                        status = HttpStatus.OK;
-                    }
+                                ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.status(status)
+                                        .contentType(mediaType)
+                                        .header(HttpHeaders.ACCEPT_RANGES, "bytes");
 
-                    Flux<DataBuffer> body = videoStreamService.streamVideo(id, headers);
-                    return ResponseEntity.status(status).body(body);
+                                if (status == HttpStatus.PARTIAL_CONTENT) {
+                                    responseBuilder.header(HttpHeaders.CONTENT_RANGE,
+                                            "bytes " + start + "-" + end + "/" + contentLength);
+                                    responseBuilder.contentLength(resourceLength);
+                                } else {
+                                    responseBuilder.contentLength(contentLength);
+                                }
+
+                                return responseBuilder.body(resourceRegion);
+                            });
                 })
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
