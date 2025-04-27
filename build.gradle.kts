@@ -22,6 +22,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.session:spring-session-core")
     implementation("commons-io:commons-io:2.13.0")
+    // QR code generation
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:javase:3.5.3")
     // SQLite JDBC driver
     implementation("org.xerial:sqlite-jdbc:3.45.1.0")
     runtimeOnly("org.xerial:sqlite-jdbc:3.45.1.0")
