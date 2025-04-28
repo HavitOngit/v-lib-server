@@ -1,69 +1,55 @@
 package com.vlibserver.vlibserver.config;
 
 import com.google.zxing.WriterException;
+import com.vlibserver.vlibserver.service.DeviceInfoService;
 import com.vlibserver.vlibserver.util.QRCodeGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Enumeration;
-
 /**
- * Component to generate and display a QR code of the server's address in the
- * terminal
- * when the application starts.
+ * Component to generate and display a QR code of the server's UUID in the
+ * terminal when the application starts.
  */
 @Component
 public class ServerAddressQRCodeGenerator {
 
-    private static final int PORT = 8080;
+    private static final Logger logger = LoggerFactory.getLogger(ServerAddressQRCodeGenerator.class);
     private static final int QR_CODE_SIZE = 25;
+
+    @Autowired
+    private DeviceInfoService deviceInfoService;
 
     @EventListener(ApplicationStartedEvent.class)
     public void generateServerAddressQRCode() {
         try {
-            String ipAddress = getLocalIPv4Address();
-            if (ipAddress != null) {
-                String serverAddress = "http://" + ipAddress + ":" + PORT;
-                displayQRCodeInTerminal(serverAddress);
-                System.out.println("\nServer running at: " + serverAddress);
-                System.out.println("Scan the QR code to access the server from your device.");
+            // Update device info (IP, hostname, UUID) on startup
+            deviceInfoService.updateDeviceInfo();
+
+            // Get device UUID for QR code
+            String deviceUUID = deviceInfoService.getDeviceUUID();
+            String deviceIP = deviceInfoService.getLocalIPv4Address();
+
+            if (deviceUUID != null) {
+                // Generate QR code for the UUID instead of IP
+                displayQRCodeInTerminal(deviceUUID);
+
+                // Still display the IP address for convenience
+
+                System.out.println("\nServer UUID: " + deviceUUID);
+                System.out.println("Server IP: " + deviceIP);
+
+                System.out.println("Scan the QR code to access this device's unique identifier.");
+
             } else {
-                System.out.println("Could not determine local IPv4 address.");
+                logger.error("Could not generate device UUID");
             }
         } catch (Exception e) {
-            System.err.println("Failed to generate QR code: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Failed to generate QR code: {}", e.getMessage(), e);
         }
-    }
-
-    /**
-     * Gets the local IPv4 address of the machine.
-     * Looks for a non-loopback, non-virtual IPv4 address.
-     *
-     * @return The IPv4 address as a String, or null if not found
-     * @throws Exception if an error occurs while getting network interfaces
-     */
-    private String getLocalIPv4Address() throws Exception {
-        Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-        while (interfaces.hasMoreElements()) {
-            NetworkInterface iface = interfaces.nextElement();
-            // Skip loopback, virtual, and inactive interfaces
-            if (iface.isLoopback() || iface.isVirtual() || !iface.isUp()) {
-                continue;
-            }
-
-            Enumeration<InetAddress> addresses = iface.getInetAddresses();
-            while (addresses.hasMoreElements()) {
-                InetAddress addr = addresses.nextElement();
-                if (addr.getHostAddress().indexOf(':') < 0) { // IPv4 address (no colons)
-                    return addr.getHostAddress();
-                }
-            }
-        }
-        return null;
     }
 
     /**
