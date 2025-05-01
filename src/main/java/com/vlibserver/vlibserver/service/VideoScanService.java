@@ -36,6 +36,9 @@ public class VideoScanService {
     @Autowired
     private VideoRepository videoRepository;
 
+    @Autowired
+    private MovieMetadataService movieMetadataService;
+
     /**
      * Run video scan on application startup
      */
@@ -45,6 +48,35 @@ public class VideoScanService {
         scanVideos().subscribe(
                 count -> logger.info("Initial scan completed. Found {} videos", count),
                 error -> logger.error("Error during initial scan", error));
+
+        // Process existing videos that don't have metadata
+        updateMissingMetadata();
+    }
+
+    /**
+     * Updates metadata for videos that don't have it yet
+     */
+    private void updateMissingMetadata() {
+        logger.info("Checking for videos without metadata");
+        List<Video> videos = videoRepository.findAll()
+                .stream()
+                .filter(video -> video.getTmdbId() == null || video.getOmdbId() == null)
+                .toList();
+
+        if (videos.isEmpty()) {
+            logger.info("No videos found without metadata");
+            return;
+        }
+
+        logger.info("Found {} videos without metadata, fetching...", videos.size());
+
+        Flux.fromIterable(videos)
+                .flatMap(movieMetadataService::fetchAndUpdateMetadata)
+                .flatMap(video -> Mono.fromCallable(() -> videoRepository.save(video)))
+                .count()
+                .subscribe(
+                        count -> logger.info("Updated metadata for {} videos", count),
+                        error -> logger.error("Error updating metadata", error));
     }
 
     /**
@@ -91,13 +123,26 @@ public class VideoScanService {
                             }
                             // Mark as available regardless of whether it was modified
                             existingVideo.setAvailable(true);
-                            return videoRepository.save(existingVideo);
+                            return existingVideo;
                         } else {
                             // New video, save it (already marked available by default)
                             logger.info("Adding new video to database: {}", scannedVideo.getName());
-                            return videoRepository.save(scannedVideo);
+                            return scannedVideo;
                         }
                     }))
+                    // Fetch and update metadata for new or modified videos
+                    .flatMap(video -> {
+                        // Only fetch metadata if it's a new video or the video doesn't have metadata
+                        // yet
+                        if (videoMap.get(video.getPath()) == null || video.getTmdbId() == null
+                                || video.getOmdbId() == null) {
+                            logger.info("Fetching metadata for video: {}", video.getName());
+                            return movieMetadataService.fetchAndUpdateMetadata(video);
+                        }
+                        return Mono.just(video);
+                    })
+                    // Save the updated video to the database
+                    .flatMap(video -> Mono.fromCallable(() -> videoRepository.save(video)))
                     .count();
         });
     }

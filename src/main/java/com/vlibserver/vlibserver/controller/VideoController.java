@@ -1,21 +1,25 @@
 package com.vlibserver.vlibserver.controller;
 
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.vlibserver.vlibserver.model.Video;
 import com.vlibserver.vlibserver.service.VideoScanService;
 import com.vlibserver.vlibserver.service.VideoStreamService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/videos")
@@ -26,34 +30,6 @@ public class VideoController {
 
     @Autowired
     private VideoScanService videoScanService;
-
-    /**
-     * Root endpoint to list all available video links
-     * 
-     * @return ResponseEntity with list of video links
-     */
-    @GetMapping(value = "/video-list", produces = "application/json")
-    public ResponseEntity<Map<String, Object>> listVideoLinks() {
-        List<Video> videos = videoScanService.getAvailableVideos();
-        List<Map<String, Object>> videoLinks = videos.stream()
-                .map(video -> {
-                    Map<String, Object> videoData = new HashMap<>();
-                    videoData.put("name", video.getName());
-                    videoData.put("link", "/api/videos/" + video.getName());
-                    videoData.put("format", video.getFormat());
-                    videoData.put("size", video.getSize());
-                    videoData.put("duration", video.getDuration());
-                    videoData.put("available", video.getAvailable());
-                    return videoData;
-                })
-                .collect(Collectors.toList());
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("videos", videoLinks);
-        response.put("count", videoLinks.size());
-
-        return ResponseEntity.ok(response);
-    }
 
     /**
      * Endpoint to get all videos

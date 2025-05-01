@@ -32,6 +32,13 @@ public class Video {
     @Column(nullable = false)
     private Boolean available = true;
 
+    // Added fields for movie metadata
+    private Long tmdbId;
+
+    private String omdbId;
+
+    private String predictedName;
+
     public Video() {
     }
 
@@ -124,6 +131,30 @@ public class Video {
         this.available = available;
     }
 
+    public Long getTmdbId() {
+        return tmdbId;
+    }
+
+    public void setTmdbId(Long tmdbId) {
+        this.tmdbId = tmdbId;
+    }
+
+    public String getOmdbId() {
+        return omdbId;
+    }
+
+    public void setOmdbId(String omdbId) {
+        this.omdbId = omdbId;
+    }
+
+    public String getPredictedName() {
+        return predictedName;
+    }
+
+    public void setPredictedName(String predictedName) {
+        this.predictedName = predictedName;
+    }
+
     @Override
     public String toString() {
         return "Video{" +
@@ -137,6 +168,9 @@ public class Video {
                 ", height=" + height +
                 ", duration=" + duration +
                 ", available=" + available +
+                ", tmdbId=" + tmdbId +
+                ", omdbId='" + omdbId + '\'' +
+                ", predictedName='" + predictedName + '\'' +
                 '}';
     }
 }

@@ -35,7 +35,7 @@ public class ServerAddressQRCodeGenerator {
 
             if (deviceUUID != null) {
                 // Generate QR code for the UUID instead of IP
-                displayQRCodeInTerminal(deviceUUID);
+                displayQRCodeInTerminal("https://local-tv.pages.dev/?serverId=" + deviceUUID);
 
                 // Still display the IP address for convenience
 
