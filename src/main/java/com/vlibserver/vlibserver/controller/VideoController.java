@@ -73,7 +73,7 @@ public class VideoController {
      * @return ResponseEntity with video resource
      */
     @GetMapping(value = "/{title:.+}", produces = "video/mp4")
-    public Mono<ResponseEntity<Resource>> getVideo(@PathVariable String title,
+    public Mono<ResponseEntity<Resource>> getVideo(@PathVariable(name = "title") String title,
             @RequestHeader(value = "Range", required = false) String range) {
         System.out.println("range in bytes: " + range);
         return videoStreamService.getVideo(title)
